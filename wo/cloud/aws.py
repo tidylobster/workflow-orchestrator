@@ -1,6 +1,6 @@
 import logging, sys, os
 import boto3 
-from ..utils import io
+from wo.utils import io
 
 __all__ = ["S3"]
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class S3: 
 
     @staticmethod
-    def _download_file_s3(bucket, source_path, destination_path, cache=True):
+    def download_file(bucket, source_path, destination_path, cache=True):
         """
         Download file from bucket.
 
@@ -37,7 +37,7 @@ class S3:
         s3.Object(bucket, source_path).download_file(destination_path)
 
     @staticmethod
-    def _upload_file_s3(bucket, source_path, destination_path, cache=True):
+    def upload_file(bucket, source_path, destination_path, cache=True):
         """
         Upload file to bucket. 
 
@@ -74,7 +74,7 @@ class S3:
         )
 
     @staticmethod
-    def _list_folder_s3(bucket, source_folder):
+    def list_folder(bucket, source_folder):
         """
         List all files in the bucket under a specified path. 
 

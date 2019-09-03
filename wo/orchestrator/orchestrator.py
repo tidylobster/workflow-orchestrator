@@ -1,8 +1,8 @@
-from ..utils.config import DefaultParamDict
-from ..frameworks._mlflow import MLflow
-from ._kubernetes import Kubernetes
-from ._kubeflow import Kubeflow
-from .storage import Storage
+from wo.utils.config import DefaultParamDict
+from wo.frameworks._mlflow import MLflow
+from wo.orchestrator._kubernetes import Kubernetes
+from wo.orchestrator._kubeflow import Kubeflow
+from wo.orchestrator.storage import Storage
 import datetime, logging, sys, os
 
 __all__ = ["Orchestrator"]

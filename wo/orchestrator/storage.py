@@ -1,5 +1,5 @@
-from ..cloud.aws import S3
-from ..cloud.gcp import GoogleStorage
+from wo.cloud.aws import S3
+from wo.cloud.gcp import GoogleStorage
 import urllib.parse, logging, sys, os
 
 __all__ = ["Storage"]
@@ -54,9 +54,9 @@ class Storage:
         logger.info("Uploading file {} to {}".format(source_path, destination_path))
 
         if scheme == "s3":
-            return S3._upload_file_s3(bucket, source_path, key, cache=cache)
+            return S3.upload_file(bucket, source_path, key, cache=cache)
         if scheme == 'gs': 
-            return GoogleStorage._upload_file_gs(bucket, source_path, key, cache=cache)
+            return GoogleStorage.upload_file(bucket, source_path, key, cache=cache)
 
     def upload_prefix(self, source_prefix, destination_prefix, cache=True):
         """
@@ -85,9 +85,9 @@ class Storage:
         dirname = os.path.dirname(relative_destination_path)
         if dirname: os.makedirs(dirname, exist_ok=True)
         if scheme == "s3": 
-            return S3._download_file_s3(bucket, key, relative_destination_path, cache=cache)
+            return S3.download_file(bucket, key, relative_destination_path, cache=cache)
         if scheme == "gs": 
-            return GoogleStorage._download_file_gs(bucket, key, relative_destination_path, cache=cache)
+            return GoogleStorage.download_file(bucket, key, relative_destination_path, cache=cache)
 
     def download_prefix(self, source_prefix, destination_prefix, cache=True):
         logger.info("Downloading prefix {} to {}".format(source_prefix, destination_prefix))
@@ -104,6 +104,6 @@ class Storage:
         logger.info("Listing files from {}".format(source_prefix))
 
         if scheme == 's3': 
-            return iter(S3._list_folder_s3(bucket, key))
+            return iter(S3.list_folder(bucket, key))
         if scheme == 'gs': 
-            return iter(GoogleStorage._list_folder_gs(bucket, key))
+            return iter(GoogleStorage.list_folder(bucket, key))

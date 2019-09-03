@@ -1,5 +1,5 @@
 import os, logging, sys
-from ..utils.config import DefaultParamDict
+from wo.utils.config import DefaultParamDict
 
 __all__ = ["Kubernetes"]
 

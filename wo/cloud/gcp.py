@@ -1,6 +1,6 @@
 import logging, sys, os
 from google.cloud import storage
-from ..utils import io
+from wo.utils import io
 
 __all__ = ["GoogleStorage"]
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 class GoogleStorage: 
 
     @staticmethod
-    def _download_file_gs(bucket, source_path, destination_path, **kwargs):
+    def download_file(bucket, source_path, destination_path, **kwargs):
         """
         Download file from bucket.
 
@@ -28,7 +28,7 @@ class GoogleStorage:
         storage.Client().get_bucket(bucket).blob(source_path).download_to_filename(destination_path)
 
     @staticmethod
-    def _upload_file_gs(bucket, source_path, destination_path, **kwargs):
+    def upload_file(bucket, source_path, destination_path, **kwargs):
         """
         Upload file to bucket. 
 
@@ -44,7 +44,7 @@ class GoogleStorage:
         storage.Client().get_bucket(bucket.name).blob(destination_path).upload_from_filename(source_path)
 
     @staticmethod
-    def _list_folder_gs(bucket, source_folder, **kwargs): 
+    def list_folder(bucket, source_folder, **kwargs): 
         """
         List all files in the bucket under a specified path. 
 
