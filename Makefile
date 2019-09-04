@@ -1,17 +1,16 @@
 PYTHON = python3
 
 all: test
+release: test wheel check upload 
 
 test:
 	docker build -t wo-test .
 	docker run -v ~/.aws:/root/.aws wo-test
 
-wheel:
+wheel: clean
 	$(PYTHON) setup.py bdist_wheel
-
 check:
 	twine check dist/*
-
 upload:
 	twine upload dist/*
 
