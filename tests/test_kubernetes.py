@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 @pytest.fixture
 def w():
     yield wo.Orchestrator(
-        default_params={"uri.google": "https://www.google.com"}, is_dev=True)
+        default_params={"uri.google": "https://www.google.com"}, dev=True)
 
 
 def test_read_config_map_default(w):

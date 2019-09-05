@@ -1,21 +1,23 @@
-from wo.utils.config import DefaultParamDict
-from wo.frameworks._mlflow import MLflow
-from wo.orchestrator._kubernetes import Kubernetes
-from wo.orchestrator._kubeflow import Kubeflow
-from wo.orchestrator.storage import Storage
-import datetime, logging, sys, os
-
-__all__ = ["Orchestrator"]
+import logging, sys
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+from wo.utils.config import DefaultParamDict
+from wo.frameworks.mlflow import MLflow
+from wo.orchestrator.kubernetes import Kubernetes
+from wo.orchestrator.kubeflow import Kubeflow
+from wo.orchestrator.storage import Storage
+import datetime, os
+
+__all__ = ["Orchestrator"]
+
 
 class Orchestrator(Storage, MLflow):
     
     def __init__(self, experiment=None, default_params=None, default_logs_path="logs/", 
-        use_mlflow=False, is_dev=False, is_kubeflow=True):
+        use_mlflow=False, dev=False, kubeflow=True):
         """
         Initialize orchestrator instance. 
 
@@ -29,9 +31,9 @@ class Orchestrator(Storage, MLflow):
             Default path, where logs of the current run will be stored.
         use_mlflow=False: bool
             Flag, indicating whether to use MLflow in current run.
-        is_dev=False: bool
+        dev=False: bool
             Flag, indicating whether this is a dry run. 
-        is_kubeflow=True: bool 
+        kubeflow=True: bool 
             Flag, indicating whether this execution is orchestrated by Kubeflow. 
         """
         self.experiment = experiment or "Default"
@@ -40,8 +42,8 @@ class Orchestrator(Storage, MLflow):
         self.default_logs_path = default_logs_path
         self.logger = logging.getLogger(__name__)
         self.__mlflow = use_mlflow
-        self.__kubeflow = is_kubeflow
-        self.__dev = is_dev
+        self.__kubeflow = kubeflow
+        self.__dev = dev
 
         if self.__mlflow:
             MLflow.set_endpoint(self.get_config()["uri.mlflow"])
@@ -89,10 +91,10 @@ class Orchestrator(Storage, MLflow):
                 raise ValueError("`logs_bucket` must be provided along with `logs_file`")
 
             timestamp = datetime.datetime.utcnow().isoformat("T") + ".log"
-            logs_file = ".".join(logs_file.split(".")[:-1])
+            logs_prefix = ".".join(logs_file.split(".")[:-1])
             logs_path = logs_path or self.default_logs_path
             logs_path = os.path.join(
-                logs_bucket, logs_path, logs_file, timestamp)
+                logs_bucket, logs_path, logs_prefix, timestamp)
             
             if outputs: outputs["logs_path"] = logs_path
             else: outputs = {"logs_path": logs_path}

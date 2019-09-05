@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 class Storage:
 
-    def _parse_uri(self, uri):
+    def parse_uri(self, uri):
         """
         Parse given URI into subparts.
 
@@ -32,7 +32,7 @@ class Storage:
             raise ValueError("Only s3 and gs are supported")
         return result.scheme, result.netloc, result.path.strip("/")
     
-    def _parse_key(self, uri):
+    def parse_path(self, uri):
         """
         Parse given URI and retrieve relative path.
 
@@ -50,7 +50,7 @@ class Storage:
 
     def upload_file(self, source_path, destination_path, cache=True):
         assert os.path.isfile(source_path), "{} must be file".format(source_path)
-        scheme, bucket, key = self._parse_uri(destination_path)
+        scheme, bucket, key = self.parse_uri(destination_path)
         logger.info("Uploading file {} to {}".format(source_path, destination_path))
 
         if scheme == "s3":
@@ -78,8 +78,8 @@ class Storage:
                 self.upload_file(os.path.join(root, file), destination_path, cache=cache)
 
     def download_file(self, source_path, destination_path, cache=True):
-        scheme, bucket, key = self._parse_uri(source_path)
-        relative_destination_path = self._parse_key(destination_path)
+        scheme, bucket, key = self.parse_uri(source_path)
+        relative_destination_path = self.parse_path(destination_path)
         logger.info("Downloading file {} to {}".format(source_path, relative_destination_path))
 
         dirname = os.path.dirname(relative_destination_path)
@@ -93,14 +93,14 @@ class Storage:
         logger.info("Downloading prefix {} to {}".format(source_prefix, destination_prefix))
 
         for fullpath, relpath in self.list_prefix(source_prefix):
-            download_path = self._parse_key(destination_prefix)
+            download_path = self.parse_path(destination_prefix)
             relative_download_path = os.path.join(download_path, relpath)
             dirname = os.path.dirname(relative_download_path)
             if dirname: os.makedirs(dirname, exist_ok=True)
             self.download_file(fullpath, relative_download_path, cache=cache)
 
     def list_prefix(self, source_prefix):
-        scheme, bucket, key = self._parse_uri(source_prefix)
+        scheme, bucket, key = self.parse_uri(source_prefix)
         logger.info("Listing files from {}".format(source_prefix))
 
         if scheme == 's3': 

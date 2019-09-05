@@ -63,7 +63,7 @@ test_nonexisting_file_prefix = with_bucket("data/{}")
 def w():
     bucket = s3.Bucket(bucket_name)
     bucket.objects.filter(Prefix="data/sample-version=test/").delete()
-    yield wo.Orchestrator(is_dev=True)
+    yield wo.Orchestrator(dev=True)
     bucket.objects.filter(Prefix="data/sample-version=test/").delete()
 
 

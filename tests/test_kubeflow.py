@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def w():
-    yield wo.Orchestrator(is_dev=True)
+    yield wo.Orchestrator(dev=True)
 
 
 def test_export_outputs_json(w):
