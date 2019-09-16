@@ -3,8 +3,8 @@ import logging, sys, pprint
 
 __all__ = ["MLflow"]
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(module)s.%(funcName)s.%(lineno)d - %(message)s")
 logger = logging.getLogger(__name__)
 
 

@@ -1,11 +1,11 @@
 import logging, sys, os
-import boto3 
+import boto3, botocore
 from wo.utils import io
 
 __all__ = ["S3"]
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(module)s.%(funcName)s.%(lineno)d - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -94,7 +94,7 @@ class S3:
         Raises
         ------
         ValueError
-            If in the given 
+            Raise if there aren't any objects under specified path.
         """
 
         s3 = boto3.resource('s3')
@@ -108,3 +108,26 @@ class S3:
         for path in result["Contents"]:
             yield '/'.join(("s3:/", bucket, path["Key"].strip('/'))), \
                 os.path.relpath(path["Key"], source_folder)
+
+    @staticmethod
+    def object_exists(bucket, path):
+        """
+        Check, if object exists under specified path. 
+
+        Parameters
+        ----------
+        path: str
+            Path to the object.
+        bucket: str
+            Bucket name, where to look up the object.
+        
+        Returns
+        -------
+        bool: 
+            Return True if object exists, otherwise return False. 
+        """
+        s3 = boto3.resource('s3')
+        try:
+            return s3.meta.client.head_object(Bucket=bucket, Key=path) and True
+        except botocore.exceptions.ClientError:
+            return False

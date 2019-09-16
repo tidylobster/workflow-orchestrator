@@ -1,56 +1,19 @@
+from wo.utils import io
 from wo.cloud.aws import S3
 from wo.cloud.gcp import GoogleStorage
 import urllib.parse, logging, sys, os
 
 __all__ = ["Storage"]
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(module)s.%(funcName)s.%(lineno)d - %(message)s")
 logger = logging.getLogger(__name__)
 
 class Storage:
 
-    def parse_uri(self, uri):
-        """
-        Parse given URI into subparts.
-
-        Parameters
-        ----–-----
-        uri: str
-            URI, containing scheme, bucket name and possibly path, pointing to a file/folder.
-        
-        Returns
-        -------
-        tuple: (scheme, bucket_name, key)
-            A tuple, which contains bucket scheme (either s3 or gs), a bucket name 
-            and key/prefix representing relative path in the bucket.
-        """
-        result = urllib.parse.urlparse(uri)
-        if not result.scheme:
-            raise ValueError("URI must contain scheme and a bucket name")
-        if result.scheme not in ('s3', 'gs'):
-            raise ValueError("Only s3 and gs are supported")
-        return result.scheme, result.netloc, result.path.strip("/")
-    
-    def parse_path(self, uri):
-        """
-        Parse given URI and retrieve relative path.
-
-        Parameters
-        ----------
-        uri: str
-            URI, containing scheme, bucket name and possibly path, pointing to a file/folder.
-        
-        Returns
-        -------
-        str
-            Key/relative path, retrieved from URI, pointing to some file/folder.
-        """
-        return urllib.parse.urlparse(uri).path.strip("/")
-
     def upload_file(self, source_path, destination_path, cache=True):
         assert os.path.isfile(source_path), "{} must be file".format(source_path)
-        scheme, bucket, key = self.parse_uri(destination_path)
+        scheme, bucket, key = io.parse_uri(destination_path)
         logger.info("Uploading file {} to {}".format(source_path, destination_path))
 
         if scheme == "s3":
@@ -78,8 +41,8 @@ class Storage:
                 self.upload_file(os.path.join(root, file), destination_path, cache=cache)
 
     def download_file(self, source_path, destination_path, cache=True):
-        scheme, bucket, key = self.parse_uri(source_path)
-        relative_destination_path = self.parse_path(destination_path)
+        scheme, bucket, key = io.parse_uri(source_path)
+        relative_destination_path = io.parse_path(destination_path)
         logger.info("Downloading file {} to {}".format(source_path, relative_destination_path))
 
         dirname = os.path.dirname(relative_destination_path)
@@ -93,17 +56,25 @@ class Storage:
         logger.info("Downloading prefix {} to {}".format(source_prefix, destination_prefix))
 
         for fullpath, relpath in self.list_prefix(source_prefix):
-            download_path = self.parse_path(destination_prefix)
+            download_path = io.parse_path(destination_prefix)
             relative_download_path = os.path.join(download_path, relpath)
             dirname = os.path.dirname(relative_download_path)
             if dirname: os.makedirs(dirname, exist_ok=True)
             self.download_file(fullpath, relative_download_path, cache=cache)
 
     def list_prefix(self, source_prefix):
-        scheme, bucket, key = self.parse_uri(source_prefix)
+        scheme, bucket, key = io.parse_uri(source_prefix)
         logger.info("Listing files from {}".format(source_prefix))
 
         if scheme == 's3': 
             return iter(S3.list_folder(bucket, key))
         if scheme == 'gs': 
             return iter(GoogleStorage.list_folder(bucket, key))
+
+    def object_exists(self, path):
+        scheme, bucket, key = io.parse_uri(path)
+        
+        if scheme == 's3':
+            return S3.object_exists(bucket, key)
+        if scheme == 'gs':
+            raise NotImplementedError

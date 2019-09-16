@@ -2,8 +2,8 @@ import os, json, logging, sys, pprint
 
 __all__ = ["Kubeflow"]
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(module)s.%(funcName)s.%(lineno)d - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -22,7 +22,7 @@ class Kubeflow:
         as_root=False: bool
             If files should be saved on the root level. 
         """ 
-        logger.info("Exporting outputs for Kubeflow:\n{}".format(pprint.pformat(outputs)))
+        logger.info("Exporting outputs to Kubeflow:\n{}".format(pprint.pformat(outputs)))
         for key, value in outputs.items():
             if as_root and os.path.dirname(key) != "/":
                 key = os.path.join("/", key)

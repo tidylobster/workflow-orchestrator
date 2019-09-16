@@ -3,8 +3,8 @@ from wo.utils.config import DefaultParamDict
 
 __all__ = ["Kubernetes"]
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(module)s.%(funcName)s.%(lineno)d - %(message)s")
 logger = logging.getLogger(__name__)
 
 

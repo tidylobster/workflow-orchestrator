@@ -1,9 +1,10 @@
 import logging, sys
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.INFO, 
+    format="%(asctime)s - %(name)s - %(levelname)s - %(module)s.%(funcName)s.%(lineno)d - %(message)s")
 logger = logging.getLogger(__name__)
 
+from typing import List
 from wo.utils.config import DefaultParamDict
 from wo.frameworks.mlflow import MLflow
 from wo.orchestrator.kubernetes import Kubernetes
@@ -16,40 +17,100 @@ __all__ = ["Orchestrator"]
 
 class Orchestrator(Storage, MLflow):
     
-    def __init__(self, experiment=None, default_params=None, default_logs_path="logs/", 
-        use_mlflow=False, dev=False, kubeflow=True):
+    def __init__(self, inputs=None, outputs=None, logs_file=None, logs_bucket=None, 
+        experiment="Default", default_params=None, mlflow=False, dev=False, kubeflow=True
+    ):
         """
         Initialize orchestrator instance. 
 
         Parameters
         ----------
-        experiment=None: str
-            Experiment name, which will be used to track current execution.
-        default_params=None: dict
+        inputs: List[tuple]
+            Inputs of the step, that should be downloaded locally. Presented as a list 
+            of 2-element tuples, where the first element is a source location of the data 
+            and the second element is the local destination of the data.  
+
+            ```
+            with wo.Orchestrator(inputs=[("s3://bucket/data", "data"), ("s3://bucket/model", "model")]) as w:
+                assert os.path.exists("data")
+                assert ps.path.exists("model")
+            ```
+
+        outputs: List[tuple]
+            Outputs of the step, that should be uploaded to the cloud after execution completes.
+            Presented as a list of 2-element tuples, where the first element is a source location 
+            of the data and the second element is the local destination of the data. 
+
+            ```
+            with wo.Orchestrator(outputs=[("transformer/", "s3://bucket/transformer/")]) as w:
+                # execute code 
+            ```
+
+        logs_file=None: str
+            File, where logs of the current execution were written. 
+        logs_bucket=None: str
+            Bucket, where logs should be uploaded. 
+
+        default_params: dict
             Default parameters, required for this execution. 
-        default_logs_path="logs/": str
-            Default path, where logs of the current run will be stored.
-        use_mlflow=False: bool
+
+        experiment="Default": str
+            Experiment name, which will be used to track current execution.
+        
+        mlflow=False: bool
             Flag, indicating whether to use MLflow in current run.
-        dev=False: bool
-            Flag, indicating whether this is a dry run. 
         kubeflow=True: bool 
             Flag, indicating whether this execution is orchestrated by Kubeflow. 
+        dev=False: bool
+            Flag, indicating whether this is a dry run. 
         """
-        self.experiment = experiment or "Default"
+        self.inputs = inputs or []
+        self.outputs = outputs or []
+
+        self.logs_file = logs_file
+        self.logs_bucket = logs_bucket
+
         self.default_params = DefaultParamDict(
-            dict() if not default_params else default_params)
-        self.default_logs_path = default_logs_path
-        self.logger = logging.getLogger(__name__)
-        self.__mlflow = use_mlflow
-        self.__kubeflow = kubeflow
-        self.__dev = dev
+            {} if not default_params else default_params)
+
+        self.experiment = experiment
+        self.__kubeflow, self.__mlflow, self.__dev = kubeflow, mlflow, dev
 
         if self.__mlflow:
             MLflow.set_endpoint(self.get_config()["uri.mlflow"])
             MLflow.set_experiment(self.experiment)
         if self.__dev:
-            self.logger.setLevel(logging.DEBUG)        
+            logger.setLevel(logging.DEBUG)     
+
+    def __enter__(self):
+        for source, destination in self.inputs:
+            if self.object_exists(source): 
+                self.download_file(source, destination)
+            else: 
+                self.download_prefix(source, destination)
+        return self
+
+    def __exit__(self, *args):
+        try: 
+            if (self.logs_file or self.logs_bucket) and not self.__dev:
+                assert self.logs_file, "`logs_file` must be provided along with `logs_bucket`"
+                assert self.logs_bucket, "`logs_bucket` must be provided along with `logs_file`"
+
+                timestamp = datetime.datetime.utcnow().isoformat("T") + ".log"
+                logs_prefix = ".".join(self.logs_file.split(".")[:-1])
+                logs_path = os.path.join(self.logs_bucket, logs_prefix, timestamp)
+
+                self.upload_file(self.logs_file, logs_path)
+                self.log_execution(outputs={"logs_path": logs_path})
+                
+            for source, destination in self.outputs:
+                if os.path.isfile(source):
+                    self.upload_prefix(source, destination)
+                else: 
+                    self.upload_prefix(source, destination)
+        except: 
+            return False
+        
 
     def get_config(self, **kwargs):
         """
@@ -76,30 +137,7 @@ class Orchestrator(Storage, MLflow):
             Parameters, used in the current execution to configure computation path. 
         metrics=None: dict
             Metrics, generated in the current execution. 
-        logs_file=None: str
-            File, where logs of the current execution were written. 
-        logs_bucket=None: str
-            Bucket, where logs should be uploaded. 
-        logs_path=None: str
-            Path, under which logs of the current execution should be uploaded. 
         """
-        logger.info("Logging current execution")
-
-        if logs_file and not self.__dev:
-            # Do not upload logs in `dev` execution
-            if not logs_bucket: 
-                raise ValueError("`logs_bucket` must be provided along with `logs_file`")
-
-            timestamp = datetime.datetime.utcnow().isoformat("T") + ".log"
-            logs_prefix = ".".join(logs_file.split(".")[:-1])
-            logs_path = logs_path or self.default_logs_path
-            logs_path = os.path.join(
-                logs_bucket, logs_path, logs_prefix, timestamp)
-            
-            if outputs: outputs["logs_path"] = logs_path
-            else: outputs = {"logs_path": logs_path}
-            self.upload_file(logs_file, logs_path)
-        
         if outputs and self.__kubeflow:
             Kubeflow.export_outputs(outputs, as_root=not self.__dev)
         if metrics and self.__mlflow:
