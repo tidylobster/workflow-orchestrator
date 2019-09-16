@@ -61,10 +61,15 @@ test_nonexisting_file_prefix = with_bucket("data/{}")
 
 @pytest.fixture
 def w():
-    bucket = s3.Bucket(bucket_name)
-    bucket.objects.filter(Prefix="data/sample-version=test/").delete()
-    yield wo.Orchestrator(dev=True)
-    bucket.objects.filter(Prefix="data/sample-version=test/").delete()
+    try: 
+        os.makedirs("data"); os.makedirs("artifacts")
+        bucket = s3.Bucket(bucket_name)
+        bucket.objects.filter(Prefix="data/sample-version=test/").delete()
+        
+        yield wo.Orchestrator(dev=True)
+    finally:
+        bucket.objects.filter(Prefix="data/sample-version=test/").delete()
+        shutil.rmtree("data"); shutil.rmtree("artifacts")
 
 
 def test_list_dir(w):
@@ -77,19 +82,19 @@ def test_list_dir(w):
 def test_download_file_with_equal_source_and_destination(w):
     w.download_file(test_existing_file_prefix, test_existing_file_prefix)
     assert os.path.exists(test_existing_file)
-    shutil.rmtree("data")
 
 
 def test_download_file_with_random_destination_dir(w):
     w.download_file(test_existing_file_prefix, "data/test/labels.npz")
     assert os.path.exists("data/test/labels.npz")
-    shutil.rmtree("data")
 
 
 def test_download_file_with_filename(w):
-    w.download_file(test_existing_file_prefix, "labels.npz")
-    assert os.path.exists("labels.npz")
-    os.remove("labels.npz")
+    try: 
+        w.download_file(test_existing_file_prefix, "labels.npz")
+        assert os.path.exists("labels.npz")
+    finally: 
+        os.remove("labels.npz")
 
 
 def test_download_dir_with_equal_source_and_destination(w):
@@ -97,7 +102,6 @@ def test_download_dir_with_equal_source_and_destination(w):
     assert os.path.exists(test_existing_dir)
     assert os.path.exists(os.path.join(test_existing_dir, "imgs.npz"))
     assert os.path.exists(os.path.join(test_existing_dir, "labels.npz"))
-    shutil.rmtree("data")
 
 
 def test_download_dir_with_random_destination_dir(w):
@@ -105,20 +109,20 @@ def test_download_dir_with_random_destination_dir(w):
     assert os.path.exists("data/mnist/test")
     assert os.path.exists("data/mnist/test/imgs.npz")
     assert os.path.exists("data/mnist/test/labels.npz")
-    shutil.rmtree("data")
 
 
 def test_upload_file(w):
-    filename = random_file()
-    destination = os.path.join(
-        test_nonexisting_file_prefix, "test_upload_file", filename)
-    w.upload_file(filename, destination)
-    assert head_file_s3(destination)
-    os.remove(filename)
+    try: 
+        filename = random_file()
+        destination = os.path.join(
+            test_nonexisting_file_prefix, "test_upload_file", filename)
+        w.upload_file(filename, destination)
+        assert head_file_s3(destination)
+    finally:
+        os.remove(filename)
 
 
 def test_upload_dir(w):
-    os.makedirs("data")
     filename1 = random_file()
     filename2 = random_file()
     shutil.move(filename1, "data")
@@ -130,5 +134,21 @@ def test_upload_dir(w):
         assert relpath in (filename1, filename2)
         assert head_file_s3(fullpath)
 
-    shutil.rmtree("data")
 
+def test_context_manager(w):
+
+    def create_file():
+        filename = random_file()
+        shutil.move(filename, f"artifacts/{filename}")
+        return filename
+
+    with wo.Orchestrator(
+        inputs=[(test_existing_dir_prefix, "data/")], 
+        outputs=[("artifacts/", with_bucket("data/sample-version=test/test_context_manager_dir/"))]
+    ):
+        assert os.path.exists("data/imgs.npz")
+        assert os.path.exists("data/labels.npz")
+        filename1, filename2 = create_file(), create_file()
+        
+    assert head_file_s3(with_bucket(f"data/sample-version=test/test_context_manager_dir/{filename1}"))
+    assert head_file_s3(with_bucket(f"data/sample-version=test/test_context_manager_dir/{filename2}"))
