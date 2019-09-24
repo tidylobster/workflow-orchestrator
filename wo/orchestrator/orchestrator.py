@@ -90,25 +90,26 @@ class Orchestrator(Storage, MLflow):
                 self.download_prefix(source, destination)
         return self
 
-    def __exit__(self, *args):
-        try: 
-            if (self.logs_file or self.logs_bucket) and not self.__dev:
-                assert self.logs_file, "`logs_file` must be provided along with `logs_bucket`"
-                assert self.logs_bucket, "`logs_bucket` must be provided along with `logs_file`"
+    def __exit__(self, error_type, error_value, error_traceback):
+        if (self.logs_file or self.logs_bucket) and not self.__dev:
+            assert self.logs_file, "`logs_file` must be provided along with `logs_bucket`"
+            assert self.logs_bucket, "`logs_bucket` must be provided along with `logs_file`"
+        
+        timestamp = datetime.datetime.utcnow().isoformat("T") + ".log"
+        logs_prefix = ".".join(self.logs_file.split(".")[:-1])
+        logs_path = os.path.join(self.logs_bucket, logs_prefix, timestamp)
 
-                timestamp = datetime.datetime.utcnow().isoformat("T") + ".log"
-                logs_prefix = ".".join(self.logs_file.split(".")[:-1])
-                logs_path = os.path.join(self.logs_bucket, logs_prefix, timestamp)
+        self.upload_file(self.logs_file, logs_path)
+        self.log_execution(outputs={"logs_path": logs_path})
 
-                self.upload_file(self.logs_file, logs_path)
-                self.log_execution(outputs={"logs_path": logs_path})
-                
+        if not error_type:
             for source, destination in self.outputs:
                 if os.path.isfile(source):
                     self.upload_prefix(source, destination)
                 else: 
                     self.upload_prefix(source, destination)
-        except: 
+            return True
+        else:
             return False
         
 
